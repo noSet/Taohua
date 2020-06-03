@@ -14,7 +14,7 @@ namespace Taohua
 
         public ServiceLifetime Lifetime { get; }
 
-        public object ImplementationInstance => GetService();
+        public object ImplementationInstance { get => _implementationInstance; internal set => _implementationInstance = value; }
 
         public Func<IServiceProvider, object> ImplementationFactory { get; }
 

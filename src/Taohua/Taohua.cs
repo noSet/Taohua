@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 
 namespace Taohua
 {
@@ -72,7 +70,48 @@ namespace Taohua
 
         private object GetService(ServiceDescriptor serviceDescriptor)
         {
+            if (serviceDescriptor.Lifetime == ServiceLifetime.Singleton)
+            {
+                if (serviceDescriptor.ImplementationInstance != null)
+                {
+                    return serviceDescriptor.ImplementationInstance;
+                }
 
+                if (serviceDescriptor.ImplementationFactory != null)
+                {
+                    serviceDescriptor.ImplementationInstance = serviceDescriptor.ImplementationFactory(this);
+
+                    return serviceDescriptor.ImplementationInstance;
+                }
+
+                if (serviceDescriptor.ImplementationType != null)
+                {
+                    var ctors = serviceDescriptor.ImplementationType.GetConstructors();
+                    var ctor = ctors.OrderByDescending(c => c.GetParameters().Length).First();
+
+                    serviceDescriptor.ImplementationInstance = ctor.Invoke(ctor.GetParameters().Select(t => GetService(t.ParameterType)).ToArray());
+
+                    return serviceDescriptor.ImplementationInstance;
+                }
+
+            }
+            else
+            {
+                if (serviceDescriptor.ImplementationFactory != null)
+                {
+                    return serviceDescriptor.ImplementationFactory(this);
+                }
+
+                if (serviceDescriptor.ImplementationType != null)
+                {
+                    var ctors = serviceDescriptor.ImplementationType.GetConstructors();
+                    var ctor = ctors.OrderByDescending(c => c.GetParameters().Length).First();
+
+                    return ctor.Invoke(ctor.GetParameters().Select(t => GetService(t.ParameterType)).ToArray());
+                }
+            }
+
+            throw new Exception("无效的服务!");
         }
     }
 }
