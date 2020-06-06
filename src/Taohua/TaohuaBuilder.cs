@@ -14,7 +14,7 @@ namespace Taohua
 
         public IServiceProvider Build()
         {
-            return new Taohua(_serviceDescriptors);
+            return new ServiceProvider(_serviceDescriptors);
         }
     }
 }

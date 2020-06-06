@@ -4,9 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Transactions;
 
 namespace Taohua.CallSite
 {
@@ -35,11 +32,9 @@ namespace Taohua.CallSite
 
         private ServiceCallSite CreateCallSite(Type serviceType, CallSiteChain callSiteChain)
         {
-            callSiteChain.CheckCircularDependency(serviceType);
-
-            var callSite = TryCreateExact(serviceType, callSiteChain) ??
-                           TryCreateOpenGeneric(serviceType, callSiteChain) ??
-                           TryCreateEnumerable(serviceType, callSiteChain);
+            var callSite = TryCreateExact(serviceType, callSiteChain)
+                        ?? TryCreateOpenGeneric(serviceType, callSiteChain)
+                        ?? TryCreateEnumerable(serviceType, callSiteChain);
 
             _callSiteCache[serviceType] = callSite;
 
@@ -109,7 +104,6 @@ namespace Taohua.CallSite
                             }
 
                             parameterCallSites = CreateArgumentCallSites(serviceType, implementationType, callSiteChain, parameters);
-
                             return new ConstructorCallSite(serviceType, constructor, parameterCallSites);
                         }
 
@@ -169,15 +163,71 @@ namespace Taohua.CallSite
 
         private ServiceCallSite TryCreateOpenGeneric(Type serviceType, CallSiteChain callSiteChain)
         {
-            throw new NotImplementedException();
+            if (serviceType.IsConstructedGenericType && _descriptorLookup.TryGetValue(serviceType.GetGenericTypeDefinition(), out var descriptor))
+            {
+                return TryCreateOpenGeneric(descriptor.Last, serviceType, callSiteChain);
+            }
+
+            return null;
+        }
+
+        private ServiceCallSite TryCreateOpenGeneric(ServiceDescriptor descriptor, Type serviceType, CallSiteChain callSiteChain)
+        {
+            if (serviceType.IsConstructedGenericType && serviceType.GetGenericTypeDefinition() == descriptor.ServiceType)
+            {
+                Debug.Assert(descriptor.ImplementationType != null, "descriptor.ImplementationType != null");
+                var closedType = descriptor.ImplementationType.MakeGenericType(serviceType.GenericTypeArguments);
+                return CreateConstructorCallSite(serviceType, closedType, callSiteChain);
+            }
+
+            return null;
         }
 
         private ServiceCallSite TryCreateEnumerable(Type serviceType, CallSiteChain callSiteChain)
         {
-            throw new NotImplementedException();
+            try
+            {
+                callSiteChain.Add(serviceType);
+
+                if (serviceType.IsConstructedGenericType && serviceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    var itemType = serviceType.GenericTypeArguments[0];
+
+                    var callSites = new List<ServiceCallSite>();
+
+                    if (!itemType.IsGenericType && _descriptorLookup.TryGetValue(itemType, out var descriptors))
+                    {
+                        for (int i = 0; i < descriptors.Count; i++)
+                        {
+                            var callSite = TryCreateExact(descriptors[i], itemType, callSiteChain);
+                            Debug.Assert(callSite != null);
+                            callSites.Add(callSite);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var descriptor in _serviceDescriptors)
+                        {
+                            var callSite = TryCreateExact(descriptor, itemType, callSiteChain)
+                                ?? TryCreateOpenGeneric(descriptor, itemType, callSiteChain);
+
+                            if (callSite != null)
+                            {
+                                callSites.Add(callSite);
+                            }
+                        }
+                    }
+
+                    return new IEnumerableCallSite(itemType, callSites.ToArray());
+                }
+
+                return null;
+            }
+            finally
+            {
+                callSiteChain.Remove(serviceType);
+            }
         }
-
-
 
         private struct ServiceDescriptorCacheItem
         {
