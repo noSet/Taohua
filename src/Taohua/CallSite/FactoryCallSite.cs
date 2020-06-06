@@ -12,7 +12,8 @@ namespace Taohua.CallSite
 
         public Func<IServiceProvider, object> Factory { get; }
 
-        public FactoryCallSite(Type serviceType, Func<IServiceProvider, object> factory)
+        public FactoryCallSite(Type serviceType, Func<IServiceProvider, object> factory, ServiceLifetime lifetime)
+            : base(lifetime)
         {
             ServiceType = serviceType;
             Factory = factory;

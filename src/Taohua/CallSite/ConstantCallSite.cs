@@ -13,6 +13,7 @@ namespace Taohua.CallSite
         internal object DefaultValue { get; }
 
         public ConstantCallSite(Type serviceType, object defaultValue)
+            : base(ServiceLifetime.Singleton)
         {
             ServiceType = serviceType;
             DefaultValue = defaultValue;

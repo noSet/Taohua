@@ -16,6 +16,7 @@ namespace Taohua.CallSite
         internal ServiceCallSite[] ServiceCallSites { get; }
 
         public IEnumerableCallSite(Type itemType, ServiceCallSite[] serviceCallSites)
+            : base(ServiceLifetime.Singleton)
         {
             ItemType = itemType;
             ServiceCallSites = serviceCallSites;

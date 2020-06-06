@@ -62,11 +62,11 @@ namespace Taohua.CallSite
                 }
                 else if (descriptor.ImplementationFactory != null)
                 {
-                    callSite = new FactoryCallSite(descriptor.ServiceType, descriptor.ImplementationFactory);
+                    callSite = new FactoryCallSite(descriptor.ServiceType, descriptor.ImplementationFactory, descriptor.Lifetime);
                 }
                 else if (descriptor.ImplementationType != null)
                 {
-                    callSite = CreateConstructorCallSite(descriptor.ServiceType, descriptor.ImplementationType, callSiteChain);
+                    callSite = CreateConstructorCallSite(descriptor.ServiceType, descriptor.ImplementationType, descriptor.Lifetime, callSiteChain);
                 }
                 else
                 {
@@ -79,7 +79,7 @@ namespace Taohua.CallSite
             return null;
         }
 
-        private ServiceCallSite CreateConstructorCallSite(Type serviceType, Type implementationType, CallSiteChain callSiteChain)
+        private ServiceCallSite CreateConstructorCallSite(Type serviceType, Type implementationType, ServiceLifetime lifetime, CallSiteChain callSiteChain)
         {
             try
             {
@@ -100,11 +100,11 @@ namespace Taohua.CallSite
 
                             if (parameters.Length == 0)
                             {
-                                return new ConstructorCallSite(serviceType, constructor, new ServiceCallSite[0]);
+                                return new ConstructorCallSite(serviceType, constructor, new ServiceCallSite[0], lifetime);
                             }
 
                             parameterCallSites = CreateArgumentCallSites(serviceType, implementationType, callSiteChain, parameters);
-                            return new ConstructorCallSite(serviceType, constructor, parameterCallSites);
+                            return new ConstructorCallSite(serviceType, constructor, parameterCallSites, lifetime);
                         }
 
                     default:
@@ -136,7 +136,7 @@ namespace Taohua.CallSite
                             }
 
                             parameterCallSites = CreateArgumentCallSites(serviceType, implementationType, callSiteChain, bestConstructor.GetParameters());
-                            return new ConstructorCallSite(serviceType, bestConstructor, parameterCallSites);
+                            return new ConstructorCallSite(serviceType, bestConstructor, parameterCallSites, lifetime);
                         }
                 }
             }
@@ -177,7 +177,7 @@ namespace Taohua.CallSite
             {
                 Debug.Assert(descriptor.ImplementationType != null, "descriptor.ImplementationType != null");
                 var closedType = descriptor.ImplementationType.MakeGenericType(serviceType.GenericTypeArguments);
-                return CreateConstructorCallSite(serviceType, closedType, callSiteChain);
+                return CreateConstructorCallSite(serviceType, closedType, descriptor.Lifetime, callSiteChain);
             }
 
             return null;

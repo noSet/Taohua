@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Taohua.CallSite;
+using Taohua.ResolverBuilder;
 
 namespace Taohua
 {
@@ -14,10 +15,11 @@ namespace Taohua
 
     internal class ServiceProvider : IServiceProvider
     {
-        private readonly Dictionary<Type, ServiceDescriptor[]> _serviceDescriptors;
-        private readonly CallSiteFactory _callSiteFactory;
+        private readonly ConcurrentDictionary<Type, object> _realizedSingletonServices = new ConcurrentDictionary<Type, object>();
         private readonly ConcurrentDictionary<Type, Func<IServiceProvider, object>> _realizedServices = new ConcurrentDictionary<Type, Func<IServiceProvider, object>>();
-        private readonly ExpressionResolverBuilder _resolverBuilder;
+        private readonly CallSiteFactory _callSiteFactory;
+        private readonly SingletonResolverBuilder _singletonResolverBuilder;
+        private readonly ExpressionResolverBuilder _expressionResolverBuilder;
 
         public ServiceProvider(IEnumerable<ServiceDescriptor> serviceDescriptors)
         {
@@ -26,11 +28,9 @@ namespace Taohua
                 throw new ArgumentNullException(nameof(serviceDescriptors));
             }
 
-            _serviceDescriptors = serviceDescriptors.GroupBy(des => des.ServiceType).ToDictionary(des => des.Key, des => des.ToArray());
-
             _callSiteFactory = new CallSiteFactory(serviceDescriptors);
-
-            _resolverBuilder = new ExpressionResolverBuilder(this);
+            _singletonResolverBuilder = new SingletonResolverBuilder(this, _realizedSingletonServices);
+            _expressionResolverBuilder = new ExpressionResolverBuilder(_singletonResolverBuilder);
         }
 
         public object GetService(Type serviceType)
@@ -42,7 +42,7 @@ namespace Taohua
         private Func<IServiceProvider, object> RealizeService(Type serviceType)
         {
             var callSite = _callSiteFactory.GetCallSite(serviceType, new CallSiteChain(serviceType));
-            var realizeService = _resolverBuilder.Build(callSite);
+            var realizeService = Expression.Lambda<Func<IServiceProvider, object>>(_expressionResolverBuilder.Build(callSite), Expression.Parameter(typeof(IServiceProvider))).Compile();
             _realizedServices[serviceType] = realizeService;
 
             return realizeService;

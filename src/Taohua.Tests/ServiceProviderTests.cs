@@ -20,5 +20,17 @@ namespace Taohua.Tests
 
             service.GetService(typeof(Boo));
         }
+
+        [TestMethod()]
+        public void SingletonServiceTest()
+        {
+            List<ServiceDescriptor> serviceDescriptors = new List<ServiceDescriptor>();
+            serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), typeof(Foo), ServiceLifetime.Singleton));
+            serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Boo), typeof(Boo), ServiceLifetime.Transient));
+
+            ServiceProvider service = new ServiceProvider(serviceDescriptors);
+
+            Assert.AreEqual(service.GetService(typeof(Boo)), service.GetService(typeof(Boo)));
+        }
     }
 }

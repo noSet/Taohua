@@ -15,7 +15,8 @@ namespace Taohua.CallSite
 
         internal ServiceCallSite[] ParameterCallSites { get; }
 
-        public ConstructorCallSite(Type serviceType, ConstructorInfo constructorInfo, ServiceCallSite[] parameterCallSites)
+        public ConstructorCallSite(Type serviceType, ConstructorInfo constructorInfo, ServiceCallSite[] parameterCallSites, ServiceLifetime lifetime)
+            : base(lifetime)
         {
             ServiceType = serviceType;
             ConstructorInfo = constructorInfo;

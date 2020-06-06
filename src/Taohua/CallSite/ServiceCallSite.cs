@@ -9,5 +9,12 @@ namespace Taohua.CallSite
         public abstract Type ServiceType { get; }
 
         public abstract Type ImplementationType { get; }
+
+        public ServiceLifetime Lifetime { get; }
+
+        public ServiceCallSite(ServiceLifetime lifetime)
+        {
+            Lifetime = lifetime;
+        }
     }
 }
