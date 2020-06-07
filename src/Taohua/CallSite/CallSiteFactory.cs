@@ -250,8 +250,8 @@ namespace Taohua.CallSite
                 }
                 else
                 {
+                    newCacheItem._items = _items ?? new List<ServiceDescriptor>() { _item };
                     newCacheItem._item = descriptor;
-                    newCacheItem._items = _items ?? new List<ServiceDescriptor>();
                     newCacheItem._items.Add(descriptor);
                 }
 
