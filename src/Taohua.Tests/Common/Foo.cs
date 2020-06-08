@@ -6,5 +6,6 @@ namespace Taohua.Tests.Common
 {
     public class Foo
     {
+        public Guid Id { get; } = Guid.NewGuid();
     }
 }

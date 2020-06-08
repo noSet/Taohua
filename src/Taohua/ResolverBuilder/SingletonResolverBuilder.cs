@@ -7,9 +7,9 @@ namespace Taohua.ResolverBuilder
     internal class SingletonResolverBuilder : ServiceResolverBuilder<object>
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly ConcurrentDictionary<Type, object> _cache;
+        private readonly ConcurrentDictionary<ServiceCallSite, object> _cache;
 
-        public SingletonResolverBuilder(IServiceProvider serviceProvider, ConcurrentDictionary<Type, object> cache)
+        public SingletonResolverBuilder(IServiceProvider serviceProvider, ConcurrentDictionary<ServiceCallSite, object> cache)
         {
             _serviceProvider = serviceProvider;
             _cache = cache;
@@ -19,7 +19,7 @@ namespace Taohua.ResolverBuilder
         {
             if (serviceCallSite.Lifetime == ServiceLifetime.Singleton)
             {
-                return _cache.GetOrAdd(serviceCallSite.ServiceType, serviceType => base.Build(serviceCallSite));
+                return _cache.GetOrAdd(serviceCallSite, serviceType => base.Build(serviceCallSite));
             }
             else
             {

@@ -15,7 +15,7 @@ namespace Taohua
 
     internal class ServiceProvider : IServiceProvider
     {
-        private readonly ConcurrentDictionary<Type, object> _realizedSingletonServices = new ConcurrentDictionary<Type, object>();
+        private readonly ConcurrentDictionary<ServiceCallSite, object> _realizedSingletonServices = new ConcurrentDictionary<ServiceCallSite, object>();
         private readonly ConcurrentDictionary<Type, Func<IServiceProvider, object>> _realizedServices = new ConcurrentDictionary<Type, Func<IServiceProvider, object>>();
         private readonly CallSiteFactory _callSiteFactory;
         private readonly SingletonResolverBuilder _singletonResolverBuilder;
@@ -29,8 +29,7 @@ namespace Taohua
             }
 
             _callSiteFactory = new CallSiteFactory(serviceDescriptors);
-            _singletonResolverBuilder = new SingletonResolverBuilder(this, _realizedSingletonServices);
-            _expressionResolverBuilder = new ExpressionResolverBuilder(_singletonResolverBuilder);
+            _expressionResolverBuilder = new ExpressionResolverBuilder(new SingletonResolverBuilder(this, _realizedSingletonServices));
         }
 
         public object GetService(Type serviceType)

@@ -11,7 +11,18 @@ namespace Taohua.CallSite
     {
         private readonly IEnumerable<ServiceDescriptor> _serviceDescriptors;
         private readonly Dictionary<Type, ServiceDescriptorCacheItem> _descriptorLookup = new Dictionary<Type, ServiceDescriptorCacheItem>();
+
+        /// <summary>
+        /// 这个是完整的缓存
+        /// 例子 Convert<Foo,Boo>
+        /// </summary>
         private readonly ConcurrentDictionary<Type, ServiceCallSite> _callSiteCache = new ConcurrentDictionary<Type, ServiceCallSite>();
+
+        /// <summary>
+        /// 缓存已创建的ServiceCallSite，确保要创建的服务类型和服务描述对应的ServiceCallSite是唯一的
+        /// 例子 Convert<Foo,Boo>|Convert<,>
+        /// </summary>
+        private readonly ConcurrentDictionary<CallSiteKey, ServiceCallSite> _incompleteCallSiteCache = new ConcurrentDictionary<CallSiteKey, ServiceCallSite>();
 
         public CallSiteFactory(IEnumerable<ServiceDescriptor> serviceDescriptors)
         {
@@ -55,25 +66,28 @@ namespace Taohua.CallSite
         {
             if (serviceType == descriptor.ServiceType)
             {
-                ServiceCallSite callSite = null;
-                if (descriptor.ImplementationInstance != null)
+                return _incompleteCallSiteCache.GetOrAdd(new CallSiteKey(serviceType, descriptor), key =>
                 {
-                    callSite = new ConstantCallSite(descriptor.ServiceType, descriptor.ImplementationInstance);
-                }
-                else if (descriptor.ImplementationFactory != null)
-                {
-                    callSite = new FactoryCallSite(descriptor.ServiceType, descriptor.ImplementationFactory, descriptor.Lifetime);
-                }
-                else if (descriptor.ImplementationType != null)
-                {
-                    callSite = CreateConstructorCallSite(descriptor.ServiceType, descriptor.ImplementationType, descriptor.Lifetime, callSiteChain);
-                }
-                else
-                {
-                    Debug.Assert(false, "无效的服务描述！");
-                }
+                    ServiceCallSite callSite = null;
+                    if (descriptor.ImplementationInstance != null)
+                    {
+                        callSite = new ConstantCallSite(descriptor.ServiceType, descriptor.ImplementationInstance);
+                    }
+                    else if (descriptor.ImplementationFactory != null)
+                    {
+                        callSite = new FactoryCallSite(descriptor.ServiceType, descriptor.ImplementationFactory, descriptor.Lifetime);
+                    }
+                    else if (descriptor.ImplementationType != null)
+                    {
+                        callSite = CreateConstructorCallSite(descriptor.ServiceType, descriptor.ImplementationType, descriptor.Lifetime, callSiteChain);
+                    }
+                    else
+                    {
+                        Debug.Assert(false, "无效的服务描述！");
+                    }
 
-                return callSite;
+                    return callSite;
+                });
             }
 
             return null;
@@ -175,9 +189,12 @@ namespace Taohua.CallSite
         {
             if (serviceType.IsConstructedGenericType && serviceType.GetGenericTypeDefinition() == descriptor.ServiceType)
             {
-                Debug.Assert(descriptor.ImplementationType != null, "descriptor.ImplementationType != null");
-                var closedType = descriptor.ImplementationType.MakeGenericType(serviceType.GenericTypeArguments);
-                return CreateConstructorCallSite(serviceType, closedType, descriptor.Lifetime, callSiteChain);
+                return _incompleteCallSiteCache.GetOrAdd(new CallSiteKey(serviceType, descriptor), key =>
+                {
+                    Debug.Assert(descriptor.ImplementationType != null, "descriptor.ImplementationType != null");
+                    var closedType = descriptor.ImplementationType.MakeGenericType(serviceType.GenericTypeArguments);
+                    return CreateConstructorCallSite(serviceType, closedType, descriptor.Lifetime, callSiteChain);
+                });
             }
 
             return null;
@@ -229,6 +246,34 @@ namespace Taohua.CallSite
             }
         }
 
+        private struct CallSiteKey : IEquatable<CallSiteKey>
+        {
+            private readonly Type _serviceType;
+            private readonly ServiceDescriptor _descriptor;
+
+            public CallSiteKey(Type serviceType, ServiceDescriptor descriptor)
+            {
+                _serviceType = serviceType;
+                _descriptor = descriptor;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is CallSiteKey key && Equals(key);
+            }
+
+            public bool Equals(CallSiteKey other)
+            {
+                return EqualityComparer<Type>.Default.Equals(_serviceType, other._serviceType) &&
+                       EqualityComparer<ServiceDescriptor>.Default.Equals(_descriptor, other._descriptor);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(_serviceType, _descriptor);
+            }
+        }
+
         private struct ServiceDescriptorCacheItem
         {
             private ServiceDescriptor _item;
@@ -265,7 +310,7 @@ namespace Taohua.CallSite
                     throw new ArgumentOutOfRangeException(nameof(index));
                 }
 
-                if (index == 0)
+                if (index == 0 && _items == null)
                 {
                     return _item;
                 }

@@ -26,6 +26,7 @@ namespace Taohua.Tests
         {
             List<ServiceDescriptor> serviceDescriptors = new List<ServiceDescriptor>();
             serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), typeof(Foo), ServiceLifetime.Singleton));
+            serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), typeof(Foo), ServiceLifetime.Singleton));
             serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Boo), typeof(Boo), ServiceLifetime.Transient));
 
             ServiceProvider service = new ServiceProvider(serviceDescriptors);
@@ -35,12 +36,14 @@ namespace Taohua.Tests
 
             Foo singletonFoo1 = service.GetService(typeof(Foo)) as Foo;
             Foo singletonFoo2 = service.GetService(typeof(Foo)) as Foo;
+            IEnumerable<Foo> foos = service.GetService(typeof(IEnumerable<Foo>)) as IEnumerable<Foo>;
 
             Assert.AreNotSame(transientBoo1, transientBoo2);
 
             Assert.AreSame(singletonFoo1, singletonFoo2);
             Assert.AreSame(singletonFoo1, transientBoo1.Foo);
             Assert.AreSame(transientBoo1.Foo, transientBoo2.Foo);
+            Assert.AreSame(singletonFoo1, foos.Last());
         }
 
         [TestMethod()]
@@ -151,6 +154,30 @@ namespace Taohua.Tests
 
             ServiceProvider service = new ServiceProvider(serviceDescriptors);
             Assert.ThrowsException<InvalidOperationException>(() => service.GetService(typeof(ManyCtor)));
+        }
+
+        [TestMethod()]
+        public void ManyServiceIndexTest()
+        {
+            List<ServiceDescriptor> serviceDescriptors = new List<ServiceDescriptor>();
+
+            var foos = Enumerable.Range(0, 3).Select(i => new Foo()).ToArray();
+
+            for (int i = 0; i < foos.Length; i++)
+            {
+                serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), foos[i]));
+            }
+
+            ServiceProvider service = new ServiceProvider(serviceDescriptors);
+
+            var foos2 = (service.GetService(typeof(IEnumerable<Foo>)) as IEnumerable<Foo>).ToArray();
+
+            Assert.AreEqual(foos.Length, foos2.Length);
+
+            for (int i = 0; i < foos.Length; i++)
+            {
+                Assert.AreSame(foos[i], foos2[i]);
+            }
         }
     }
 }
