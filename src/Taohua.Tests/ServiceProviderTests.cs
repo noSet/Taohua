@@ -179,5 +179,43 @@ namespace Taohua.Tests
                 Assert.AreSame(foos[i], foos2[i]);
             }
         }
+
+        [TestMethod()]
+        public void ManyServiceIndexTest2()
+        {
+            List<ServiceDescriptor> serviceDescriptors = new List<ServiceDescriptor>();
+
+            for (int i = 0; i < 3; i++)
+            {
+                serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), services => new Foo(), i == 2 ? ServiceLifetime.Transient : ServiceLifetime.Singleton));
+            }
+
+            var foo = new Foo();
+            serviceDescriptors.Add(ServiceDescriptor.Describe(typeof(Foo), foo));
+
+            ServiceProvider service = new ServiceProvider(serviceDescriptors);
+
+            var foos1 = (service.GetService(typeof(IEnumerable<Foo>)) as IEnumerable<Foo>).ToArray();
+            var foos2 = (service.GetService(typeof(IEnumerable<Foo>)) as IEnumerable<Foo>).ToArray();
+
+            Assert.AreEqual(foos1.Length, foos2.Length);
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (i == 2)
+                {
+                    Assert.AreNotSame(foos1[i], foos2[i]);
+                }
+                else
+                {
+                    Assert.AreSame(foos2[i], foos2[i]);
+                }
+
+                if (i == 3)
+                {
+                    Assert.AreSame(foo, foos2[i]);
+                }
+            }
+        }
     }
 }

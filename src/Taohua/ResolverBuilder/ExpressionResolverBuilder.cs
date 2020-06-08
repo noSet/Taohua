@@ -9,6 +9,8 @@ namespace Taohua.ResolverBuilder
     {
         private readonly SingletonResolverBuilder _singletonResolverBuilder;
 
+        internal static ParameterExpression Parameter = Expression.Parameter(typeof(IServiceProvider));
+
         public ExpressionResolverBuilder(SingletonResolverBuilder singletonResolverBuilder)
         {
             _singletonResolverBuilder = singletonResolverBuilder;
@@ -21,7 +23,7 @@ namespace Taohua.ResolverBuilder
 
         protected override Expression BuildFactory(FactoryCallSite callSite)
         {
-            return Expression.Invoke(Expression.Constant(callSite.Factory), Expression.Parameter(typeof(IServiceProvider)));
+            return Expression.Invoke(Expression.Constant(callSite.Factory), Parameter);
         }
 
         protected override Expression BuildConstructor(ConstructorCallSite callSite)

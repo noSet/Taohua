@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using Taohua.CallSite;
@@ -38,10 +39,12 @@ namespace Taohua
             return realizedService?.Invoke(this);
         }
 
+
         private Func<IServiceProvider, object> RealizeService(Type serviceType)
         {
             var callSite = _callSiteFactory.GetCallSite(serviceType, new CallSiteChain(serviceType));
-            var realizeService = Expression.Lambda<Func<IServiceProvider, object>>(_expressionResolverBuilder.Build(callSite), Expression.Parameter(typeof(IServiceProvider))).Compile();
+            var expression = Expression.Lambda<Func<IServiceProvider, object>>(_expressionResolverBuilder.Build(callSite), ExpressionResolverBuilder.Parameter);
+            var realizeService = expression.Compile();
             _realizedServices[serviceType] = realizeService;
 
             return realizeService;
